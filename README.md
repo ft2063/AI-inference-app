@@ -14,21 +14,20 @@ It allows users to **record speech via a mobile app**, send it to a backend serv
 
 AI-inference-app/
 │
-├── expo-voice-demo/         # 📱 Mobile app built with Expo (React Native)
-│   ├── app/                 # Screens and navigation
-│   ├── components/          # Reusable UI components
-│   ├── hooks/               # Custom React hooks
-│   ├── assets/              # Images, icons, fonts
-│   └── package.json         # Frontend dependencies
+├── expo-voice-demo/ # 📱 Mobile app built with Expo (React Native)
+│ ├── app/ # Screens and navigation
+│ ├── components/ # Reusable UI components
+│ ├── hooks/ # Custom React hooks
+│ ├── assets/ # Images, icons, fonts
+│ └── package.json # Frontend dependencies
 │
-├── transcribe-server/       # 💻 Backend API server
-│   ├── uploads/             # Temporary storage for audio files
-│   ├── index.js              # Express server entry point
-│   └── package.json         # Backend dependencies
+├── transcribe-server/ # 💻 Backend API server
+│ ├── uploads/ # Temporary storage for audio files
+│ ├── index.js # Express server entry point
+│ └── package.json # Backend dependencies
 │
-├── package.json             # Root project dependencies (if applicable)
+├── package.json # Root project dependencies (if applicable)
 └── README.md
-
 ````
 
 ---
