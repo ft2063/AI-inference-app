@@ -1,6 +1,4 @@
-Got it — here’s a **clean, GitHub-friendly README** you can drop directly into your repo so your project looks polished and easy to understand.
 
----
 
 ```markdown
 # 🎤 AI Inference App – Voice Transcription & Analysis
