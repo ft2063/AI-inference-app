@@ -5,8 +5,13 @@ import fs from "fs";
 import fsp from "fs/promises";
 import path from "path";
 import OpenAI from "openai";
+import { summarizeKeyPoints, embed, answerWithRAG } from "./ai.js";
+import { addItem, searchByQueryEmbedding, listItems } from "./db.js";
+
+
 
 const app = express();
+app.use(express.json({ limit: "10mb" }));
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Ensure folders exist
@@ -111,4 +116,107 @@ app.post("/transcribe", upload.single("file"), async (req, res) => {
   }
 });
 
+app.post("/ingest", async (req, res) => {
+    try {
+      const { text, meta } = req.body || {};
+      if (!text || typeof text !== "string") {
+        return res.status(400).json({ error: "Provide { text }" });
+      }
+  
+      const keyPoints = await summarizeKeyPoints(text);
+      const vector   = await embed(text);
+  
+      const id = await addItem({ text, keyPoints, embedding: vector, meta: meta || {} });
+  
+      res.json({ id, keyPoints });
+    } catch (e) {
+      console.error("Ingest error:", e);
+      res.status(500).json({ error: String(e) });
+    }
+  });
+  
+  // --- NEW: Semantic search ---
+  app.get("/search", async (req, res) => {
+    try {
+      const q = String(req.query.q || "").trim();
+      const k = Number(req.query.k || 5);
+      if (!q) return res.status(400).json({ error: "Provide ?q=..." });
+  
+      const qVec = await embed(q);
+      const results = await searchByQueryEmbedding(qVec, k);
+  
+      res.json({
+        query: q,
+        results: results.map(({ item, score }) => ({
+          id: item.id,
+          score,
+          keyPoints: item.keyPoints,
+          snippet: item.text.slice(0, 400),
+          createdAt: item.createdAt,
+          meta: item.meta,
+        })),
+      });
+    } catch (e) {
+      console.error("Search error:", e);
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
+  app.get("/answer", async (req, res) => {
+    try {
+      const q = String(req.query.q || "").trim();
+      const k = Number(req.query.k || 5);
+      if (!q) return res.status(400).json({ error: "Provide ?q=..." });
+  
+      // retrieve top-k
+      const qVec = await embed(q);
+      const retrieved = await searchByQueryEmbedding(qVec, k);
+  
+      // build minimal context for the model
+      const contexts = retrieved.map(({ item, score }) => ({
+        id: item.id,
+        score,
+        keyPoints: item.keyPoints,
+        snippet: item.text.slice(0, 600),
+        createdAt: item.createdAt,
+        meta: item.meta,
+      }));
+  
+      const { answer } = await answerWithRAG(q, contexts);
+  
+      res.json({
+        query: q,
+        answer,
+        sources: contexts.map((c, i) => ({
+          ref: `#${i+1}`,
+          id: c.id,
+          title: c.meta?.title || null,
+          score: c.score,
+          createdAt: c.createdAt,
+        })),
+      });
+    } catch (e) {
+      console.error("Answer error:", e);
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
+  // List everything in the library (simple view)
+app.get("/library", async (req, res) => {
+    try {
+      const items = await listItems();
+      const out = items.map((it) => ({
+        id: it.id,
+        createdAt: it.createdAt,
+        title: it.meta?.title || null,
+        keyPoints: it.keyPoints || "",
+      }));
+      res.json(out);
+    } catch (e) {
+      console.error("Library error:", e);
+      res.status(500).json({ error: String(e) });
+    }
+  });
+  
+  
 app.listen(3001, "0.0.0.0", () => console.log("Transcribe server → http://0.0.0.0:3001"));
